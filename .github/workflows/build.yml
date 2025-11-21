@@ -18,7 +18,7 @@ on:
     - cron: "0 2 * * *" # daily
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     env:
       GO_VER: "1.24"
@@ -49,9 +49,49 @@ jobs:
           ARCH_LIST=$(echo "${ARCH_INPUT:-"amd64 arm64 arm ppc64le s390x riscv64 loong64"}" | tr ',' ' ')
           ARCH_LABEL=$(echo "$ARCH_LIST" | tr ' ' '_' | tr ',' '_')
 
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "ARCH_LIST=$ARCH_LIST" >> "$GITHUB_ENV"
-          echo "ARCH_LABEL=$ARCH_LABEL" >> "$GITHUB_ENV"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "arch_list=${ARCH_LIST}" >> "$GITHUB_OUTPUT"
+          echo "arch_label=${ARCH_LABEL}" >> "$GITHUB_OUTPUT"
+
+      - name: Check release (skip if already built)
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "build=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version }}" ]; then
+            echo "build=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh release view "${VERSION}" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "build=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=1" >> "$GITHUB_OUTPUT"
+          fi
+
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      arch_list: ${{ steps.vars.outputs.arch_list }}
+      arch_label: ${{ steps.vars.outputs.arch_label }}
+      build: ${{ steps.check.outputs.build }}
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == '1'
+    runs-on: ubuntu-latest
+    env:
+      GO_VER: "1.24"
+      NODE_VER: "20"
+      VERSION: ${{ needs.check.outputs.version }}
+      ARCH_LIST: ${{ needs.check.outputs.arch_list }}
+      ARCH_LABEL: ${{ needs.check.outputs.arch_label }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Build builder image
         run: |
