@@ -1,7 +1,7 @@
 ARG GO_VERSION=1.24
 ARG NODE_VERSION=20
 ARG VERSION=v2.0.13
-ARG TARGET_ARCH=loong64
+ARG TARGET_ARCHES="amd64 arm64 loong64"
 
 FROM node:${NODE_VERSION}-bookworm AS frontend-builder
 ARG VERSION
@@ -24,9 +24,9 @@ RUN set -ex \
 
 FROM golang:${GO_VERSION}-bookworm AS builder
 ARG VERSION
-ARG TARGET_ARCH
+ARG TARGET_ARCHES
 ENV VERSION=${VERSION}
-ENV TARGET_ARCH=${TARGET_ARCH}
+ENV TARGET_ARCHES=${TARGET_ARCHES}
 
 WORKDIR /opt/1Panel
 
@@ -41,25 +41,25 @@ RUN set -ex && ./ci/script.sh
 
 RUN set -ex \
     && mkdir -p build dist \
-    && cd core \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=${TARGET_ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-core ./cmd/server/main.go
-
-RUN set -ex \
-    && cd agent \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=${TARGET_ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-agent ./cmd/server/main.go
-
-RUN set -ex \
-    && PACKAGE_NAME="1panel-${VERSION}-linux-${TARGET_ARCH}" \
-    && mkdir -p "${PACKAGE_NAME}" \
-    && cp build/1panel-core build/1panel-agent "${PACKAGE_NAME}/" \
-    && cp 1pctl install.sh "${PACKAGE_NAME}/" \
-    && cp 1panel-core.service 1panel-agent.service "${PACKAGE_NAME}/" \
-    && cp GeoIP.mmdb LICENSE README.md "${PACKAGE_NAME}/" \
-    && cp -r initscript lang "${PACKAGE_NAME}/" \
-    && tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}" \
-    && sha256sum "${PACKAGE_NAME}.tar.gz" > dist/"${PACKAGE_NAME}.tar.gz.sha256" \
-    && mv "${PACKAGE_NAME}.tar.gz" dist/ \
-    && rm -rf "${PACKAGE_NAME}"
+    && for ARCH in ${TARGET_ARCHES}; do \
+        echo "==> building ${ARCH}"; \
+        cd /opt/1Panel/core; \
+        CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-core ./cmd/server/main.go; \
+        cd /opt/1Panel/agent; \
+        CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-agent ./cmd/server/main.go; \
+        PACKAGE_NAME="1panel-${VERSION}-linux-${ARCH}"; \
+        mkdir -p "/opt/1Panel/${PACKAGE_NAME}"; \
+        cp /opt/1Panel/build/1panel-core /opt/1Panel/build/1panel-agent "/opt/1Panel/${PACKAGE_NAME}/"; \
+        cp /opt/1Panel/1pctl /opt/1Panel/install.sh "/opt/1Panel/${PACKAGE_NAME}/"; \
+        cp /opt/1Panel/1panel-core.service /opt/1Panel/1panel-agent.service "/opt/1Panel/${PACKAGE_NAME}/"; \
+        cp /opt/1Panel/GeoIP.mmdb /opt/1Panel/LICENSE /opt/1Panel/README.md "/opt/1Panel/${PACKAGE_NAME}/"; \
+        cp -r /opt/1Panel/initscript /opt/1Panel/lang "/opt/1Panel/${PACKAGE_NAME}/"; \
+        tar -czf "/opt/1Panel/${PACKAGE_NAME}.tar.gz" -C /opt/1Panel "${PACKAGE_NAME}"; \
+        sha256sum "/opt/1Panel/${PACKAGE_NAME}.tar.gz" > "/opt/1Panel/dist/${PACKAGE_NAME}.tar.gz.sha256"; \
+        mv "/opt/1Panel/${PACKAGE_NAME}.tar.gz" /opt/1Panel/dist/; \
+        rm -rf "/opt/1Panel/${PACKAGE_NAME}"; \
+    done \
+    && rm -rf build
 
 FROM debian:bookworm-slim
 

@@ -11,23 +11,18 @@ on:
         required: false
         default: ""
       arch:
-        description: "GOARCH target (e.g. loong64, amd64, arm64)"
+        description: "GOARCH list (space or comma separated, e.g. \"amd64 arm64 loong64\")"
         required: false
-        default: "loong64"
-      go_version:
-        description: "Go version used by the builder image"
-        required: false
-        default: "1.24"
-      node_version:
-        description: "Node.js version used by the frontend build"
-        required: false
-        default: "20"
+        default: "amd64 arm64 loong64"
   schedule:
     - cron: "0 2 * * *" # daily
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GO_VER: "1.24"
+      NODE_VER: "20"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,8 +33,6 @@ jobs:
           set -e
           VERSION_INPUT="${{ inputs.version }}"
           ARCH_INPUT="${{ inputs.arch }}"
-          GO_VER_INPUT="${{ inputs.go_version }}"
-          NODE_VER_INPUT="${{ inputs.node_version }}"
 
           if [ -n "$VERSION_INPUT" ]; then
             VERSION="$VERSION_INPUT"
@@ -53,21 +46,19 @@ jobs:
             VERSION="v2.0.13"
           fi
 
-          ARCH="${ARCH_INPUT:-loong64}"
-          GO_VER="${GO_VER_INPUT:-1.24}"
-          NODE_VER="${NODE_VER_INPUT:-20}"
+          ARCH_LIST=$(echo "${ARCH_INPUT:-"amd64 arm64 loong64"}" | tr ',' ' ')
+          ARCH_LABEL=$(echo "$ARCH_LIST" | tr ' ' '_' | tr ',' '_')
 
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "ARCH=$ARCH" >> "$GITHUB_ENV"
-          echo "GO_VER=$GO_VER" >> "$GITHUB_ENV"
-          echo "NODE_VER=$NODE_VER" >> "$GITHUB_ENV"
+          echo "ARCH_LIST=$ARCH_LIST" >> "$GITHUB_ENV"
+          echo "ARCH_LABEL=$ARCH_LABEL" >> "$GITHUB_ENV"
 
       - name: Build builder image
         run: |
           docker build \
             -f Dockerfile \
             --build-arg VERSION="${VERSION}" \
-            --build-arg TARGET_ARCH="${ARCH}" \
+            --build-arg TARGET_ARCHES="${ARCH_LIST}" \
             --build-arg GO_VERSION="${GO_VER}" \
             --build-arg NODE_VERSION="${NODE_VER}" \
             -t "1panel-v2-builder:${{ github.sha }}" \
@@ -82,5 +73,16 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 1panel-${{ env.VERSION }}-${{ env.ARCH }}
+          name: 1panel-${{ env.VERSION }}-${{ env.ARCH_LABEL }}
           path: dist/*
+
+      - name: Publish GitHub Release (tag builds)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          artifacts: "dist/*"
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
