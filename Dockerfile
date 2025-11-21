@@ -2,7 +2,7 @@ ARG GO_VERSION=1.24
 ARG NODE_VERSION=20
 ARG VERSION=v2.0.13
 ARG INSTALLER_REF=""
-ARG TARGET_ARCHES="amd64 arm64 arm ppc64le s390x riscv64 loong64"
+ARG TARGET_ARCHES="amd64 arm64 armv7 ppc64le s390x loong64 riscv64"
 
 FROM node:${NODE_VERSION}-bookworm AS frontend-builder
 ARG VERSION
@@ -51,11 +51,13 @@ RUN set -ex \
     && mkdir -p build dist \
     && for ARCH in ${TARGET_ARCHES}; do \
         echo "==> building ${ARCH}"; \
+        GOARCH=${ARCH}; GOARM=""; APP_ARCH=${ARCH}; \
+        if [ "${ARCH}" = "armv7" ]; then GOARCH=arm; GOARM=7; APP_ARCH=armv7; fi; \
         cd /opt/1Panel/core; \
-        CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-core ./cmd/server/main.go; \
+        CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GOARM=${GOARM} go build -trimpath -ldflags '-s -w' -o ../build/1panel-core ./cmd/server/main.go; \
         cd /opt/1Panel/agent; \
-        CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-agent ./cmd/server/main.go; \
-        PACKAGE_NAME="1panel-${VERSION}-linux-${ARCH}"; \
+        CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GOARM=${GOARM} go build -trimpath -ldflags '-s -w' -o ../build/1panel-agent ./cmd/server/main.go; \
+        PACKAGE_NAME="1panel-${VERSION}-linux-${APP_ARCH}"; \
         mkdir -p "/opt/1Panel/${PACKAGE_NAME}"; \
         cp /opt/1Panel/build/1panel-core /opt/1Panel/build/1panel-agent "/opt/1Panel/${PACKAGE_NAME}/"; \
         cp /opt/1Panel/1pctl /opt/1Panel/install.sh "/opt/1Panel/${PACKAGE_NAME}/"; \

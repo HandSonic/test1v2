@@ -7,7 +7,7 @@ Dockerfile for building 1Panel v2 from source (frontend + core + agent) and pack
 # 在 diyv2 仓库根目录执行
 docker build -f Dockerfile \
   --build-arg VERSION=v2.0.13 \
-  --build-arg TARGET_ARCHES="amd64 arm64 arm ppc64le s390x riscv64 loong64" \
+  --build-arg TARGET_ARCHES="amd64 arm64 armv7 ppc64le s390x loong64 riscv64" \
   -t 1panel-v2-builder .
 
 docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
@@ -15,7 +15,7 @@ docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 
 ### Args
 - `VERSION`: git tag/branch to build (default `v2.0.13`).
-- `TARGET_ARCHES`: 空格或逗号分隔的 GOARCH 列表（默认 `amd64 arm64 arm ppc64le s390x riscv64 loong64`），会依次构建并产出多个离线包。
+- `TARGET_ARCHES`: 空格或逗号分隔的 GOARCH 列表（默认 `amd64 arm64 armv7 ppc64le s390x loong64 riscv64`），会依次构建并产出多个离线包。`armv7` 会自动使用 GOARCH=arm GOARM=7 并输出 `linux-armv7` 名称，与官方一致。
 - `GO_VERSION`: Go toolchain (default 1.24；已在 Dockerfile 和 Action 固定，可不填).
 - `NODE_VERSION`: Node.js for the frontend build (default 20；已在 Dockerfile 和 Action 固定，可不填).
 - `INSTALLER_REF`: 覆盖 installer 仓库分支/tag（默认 `v2`，与官方一致；如 installer 有对应 tag 可手动指定）。
