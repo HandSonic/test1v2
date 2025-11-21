@@ -110,14 +110,28 @@ jobs:
           docker run --rm -v "$PWD/dist:/dist" "1panel-v2-builder:${{ github.sha }}"
           ls -lh dist
 
+      - name: Create tag if missing
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          VERSION: ${{ env.VERSION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "${VERSION}" >/dev/null 2>&1; then
+            echo "Tag ${VERSION} already exists locally"
+          else
+            git tag -a "${VERSION}" -m "${VERSION}"
+          fi
+          git push origin "refs/tags/${VERSION}" || true
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: 1panel-${{ env.VERSION }}-${{ env.ARCH_LABEL }}
           path: dist/*
 
-      - name: Publish GitHub Release (tag builds)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Publish GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.VERSION }}
