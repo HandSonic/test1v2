@@ -6,6 +6,7 @@ ARG TARGET_ARCH=loong64
 FROM node:${NODE_VERSION}-bookworm AS frontend-builder
 ARG VERSION
 ENV VERSION=${VERSION}
+ENV NODE_OPTIONS=--max-old-space-size=8192
 
 RUN set -ex \
     && apt-get update \

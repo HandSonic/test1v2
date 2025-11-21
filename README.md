@@ -18,6 +18,7 @@ docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 - `TARGET_ARCH`: GOARCH value, e.g. `loong64`, `amd64`, `arm64`.
 - `GO_VERSION`: Go toolchain (needs to be >=1.24 for current modules).
 - `NODE_VERSION`: Node.js for the frontend build (defaults to 20).
+- 前端构建阶段已设置 `NODE_OPTIONS=--max-old-space-size=8192` 以避免 Vite 构建时内存不足。
 
 ### Output
 - `dist/1panel-${VERSION}-linux-${TARGET_ARCH}.tar.gz` and matching `.sha256`.
@@ -25,6 +26,8 @@ docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 - Frontend assets are built inside the container, so no host-side Node.js or Go setup is required.
 
 ### GitHub Actions
-仓库内置 `.github/workflows/build.yml`，在 GitHub 页面手动触发 `build-offline` 工作流即可自动构建并上传离线包。
-- 可在触发时指定 `version`（tag/branch，如 v2.0.13）、`arch`（GOARCH，如 loong64/amd64/arm64）、`go_version`、`node_version`。
-- 工作流步骤：`docker build` -> `docker run` 导出到 `dist/` -> `actions/upload-artifact` 上传产物。
+- 仓库内置 `.github/workflows/build.yml`，支持两种用法：
+  - 推送 tag（`v*`）时自动触发，默认使用 tag 名作为版本。
+  - 定时任务（每天 02:00 UTC）会自动运行，版本号默认取 1Panel 官方仓库最新 release（拉取失败时回落到 `v2.0.13`），架构默认 `loong64`。
+  - 手动触发 `workflow_dispatch` 可覆盖 `version/arch/go_version/node_version`，不填 `version` 时同样使用当前 ref 或最新 release。
+- 工作流步骤：`docker build` -> `docker run` 导出到 `dist/` -> `actions/upload-artifact` 上传产物（名称：`1panel-<version>-<arch>`）。
