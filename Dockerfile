@@ -1,6 +1,7 @@
 ARG GO_VERSION=1.24
 ARG NODE_VERSION=20
 ARG VERSION=v2.0.13
+ARG INSTALLER_REF=""
 ARG TARGET_ARCHES="amd64 arm64 arm ppc64le s390x riscv64 loong64"
 
 FROM node:${NODE_VERSION}-bookworm AS frontend-builder
@@ -24,8 +25,10 @@ RUN set -ex \
 
 FROM golang:${GO_VERSION}-bookworm AS builder
 ARG VERSION
+ARG INSTALLER_REF
 ARG TARGET_ARCHES
 ENV VERSION=${VERSION}
+ENV INSTALLER_REF=${INSTALLER_REF}
 ENV TARGET_ARCHES=${TARGET_ARCHES}
 
 WORKDIR /opt/1Panel
@@ -37,7 +40,10 @@ RUN set -ex \
     && apt-get install -y --no-install-recommends ca-certificates git wget \
     && rm -rf /var/lib/apt/lists/*
 
-RUN set -ex && ./ci/script.sh
+RUN set -ex \
+    && REF="${INSTALLER_REF:-${VERSION}}" \
+    && sed -i "s@installer/raw/v2/@installer/raw/${REF}/@g" ./ci/script.sh \
+    && ./ci/script.sh
 
 RUN set -ex \
     && mkdir -p build dist \

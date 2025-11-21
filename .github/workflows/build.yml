@@ -1,5 +1,8 @@
 name: build-offline
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
