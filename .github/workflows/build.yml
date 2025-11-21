@@ -30,13 +30,13 @@ jobs:
       - name: Build builder image
         run: |
           docker build \
-            -f diyv2/Dockerfile \
+            -f Dockerfile \
             --build-arg VERSION=${{ inputs.version }} \
             --build-arg TARGET_ARCH=${{ inputs.arch }} \
             --build-arg GO_VERSION=${{ inputs.go_version }} \
             --build-arg NODE_VERSION=${{ inputs.node_version }} \
             -t 1panel-v2-builder:${{ github.sha }} \
-            diyv2
+            .
 
       - name: Export artifacts
         run: |

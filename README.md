@@ -4,11 +4,11 @@ Dockerfile for building 1Panel v2 from source (frontend + core + agent) and pack
 
 ### Build and export（本地 Docker）
 ```bash
-# from repo root
-docker build -f diyv2/Dockerfile \
+# 在 diyv2 仓库根目录执行
+docker build -f Dockerfile \
   --build-arg VERSION=v2.0.13 \
   --build-arg TARGET_ARCH=loong64 \
-  -t 1panel-v2-builder diyv2
+  -t 1panel-v2-builder .
 
 docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 ```
