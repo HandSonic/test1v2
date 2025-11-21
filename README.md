@@ -19,6 +19,7 @@ docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 - `GO_VERSION`: Go toolchain (default 1.24；已在 Dockerfile 和 Action 固定，可不填).
 - `NODE_VERSION`: Node.js for the frontend build (default 20；已在 Dockerfile 和 Action 固定，可不填).
 - `INSTALLER_REF`: 覆盖 installer 仓库分支/tag（默认 `v2`，与官方一致；如 installer 有对应 tag 可手动指定）。
+- 打包时会将 `1pctl` 中的 `ORIGINAL_VERSION` 写成构建版本，确保安装后系统显示的版本号正确。
 - Go 构建使用默认标签（不开 `xpack`），避免开源仓库缺少 `xpack` 源码导致的 build constraints 错误。
 - 前端构建阶段已设置 `NODE_OPTIONS=--max-old-space-size=8192` 以避免 Vite 构建时内存不足。
 

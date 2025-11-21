@@ -45,7 +45,8 @@ RUN set -ex \
     && sed -i "s@installer/raw/v2/@installer/raw/${REF}/@g" ./ci/script.sh \
     && sed -i "s@installer/raw/${REF}/1panel-core.service@installer/raw/${REF}/initscript/1panel-core.service@g" ./ci/script.sh \
     && sed -i "s@installer/raw/${REF}/1panel-agent.service@installer/raw/${REF}/initscript/1panel-agent.service@g" ./ci/script.sh \
-    && ./ci/script.sh
+    && ./ci/script.sh \
+    && sed -i "s@^ORIGINAL_VERSION=.*@ORIGINAL_VERSION=${VERSION}@g" /opt/1Panel/1pctl
 
 RUN set -ex \
     && mkdir -p build dist \

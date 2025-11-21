@@ -142,4 +142,5 @@ jobs:
           artifacts: "dist/*"
           allowUpdates: true
           artifactErrorsFailBuild: true
-          generateReleaseNotes: true
+          generateReleaseNotes: false
+          body: "Automated offline build for ${{ env.VERSION }} (arches: ${{ env.ARCH_LIST }})"
