@@ -41,8 +41,10 @@ RUN set -ex \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -ex \
-    && REF="${INSTALLER_REF:-${VERSION}}" \
+    && REF="${INSTALLER_REF:-v2}" \
     && sed -i "s@installer/raw/v2/@installer/raw/${REF}/@g" ./ci/script.sh \
+    && sed -i "s@installer/raw/${REF}/1panel-core.service@installer/raw/${REF}/initscript/1panel-core.service@g" ./ci/script.sh \
+    && sed -i "s@installer/raw/${REF}/1panel-agent.service@installer/raw/${REF}/initscript/1panel-agent.service@g" ./ci/script.sh \
     && ./ci/script.sh
 
 RUN set -ex \

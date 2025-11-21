@@ -18,7 +18,7 @@ docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 - `TARGET_ARCHES`: 空格或逗号分隔的 GOARCH 列表（默认 `amd64 arm64 arm ppc64le s390x riscv64 loong64`），会依次构建并产出多个离线包。
 - `GO_VERSION`: Go toolchain (default 1.24；已在 Dockerfile 和 Action 固定，可不填).
 - `NODE_VERSION`: Node.js for the frontend build (default 20；已在 Dockerfile 和 Action 固定，可不填).
-- `INSTALLER_REF`: 覆盖从 installer 仓库下载安装脚本/服务文件的分支或 tag，默认为构建版本号（避免老版本被最新版 installer 覆盖）。
+- `INSTALLER_REF`: 覆盖 installer 仓库分支/tag（默认 `v2`，与官方一致；如 installer 有对应 tag 可手动指定）。
 - Go 构建使用默认标签（不开 `xpack`），避免开源仓库缺少 `xpack` 源码导致的 build constraints 错误。
 - 前端构建阶段已设置 `NODE_OPTIONS=--max-old-space-size=8192` 以避免 Vite 构建时内存不足。
 
