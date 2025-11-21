@@ -42,11 +42,11 @@ RUN set -ex && ./ci/script.sh
 RUN set -ex \
     && mkdir -p build dist \
     && cd core \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=${TARGET_ARCH} go build -tags=xpack -trimpath -ldflags '-s -w' -o ../build/1panel-core ./cmd/server/main.go
+    && CGO_ENABLED=0 GOOS=linux GOARCH=${TARGET_ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-core ./cmd/server/main.go
 
 RUN set -ex \
     && cd agent \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=${TARGET_ARCH} go build -tags=xpack -trimpath -ldflags '-s -w' -o ../build/1panel-agent ./cmd/server/main.go
+    && CGO_ENABLED=0 GOOS=linux GOARCH=${TARGET_ARCH} go build -trimpath -ldflags '-s -w' -o ../build/1panel-agent ./cmd/server/main.go
 
 RUN set -ex \
     && PACKAGE_NAME="1panel-${VERSION}-linux-${TARGET_ARCH}" \
@@ -69,4 +69,4 @@ COPY --from=builder /opt/1Panel/dist /opt/1Panel/dist
 
 VOLUME /dist
 
-CMD cp -rf dist/* /dist/
+CMD ["/bin/sh", "-c", "cp -rf dist/* /dist/"]

@@ -18,6 +18,7 @@ docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 - `TARGET_ARCH`: GOARCH value, e.g. `loong64`, `amd64`, `arm64`.
 - `GO_VERSION`: Go toolchain (needs to be >=1.24 for current modules).
 - `NODE_VERSION`: Node.js for the frontend build (defaults to 20).
+- Go 构建使用默认标签（不开 `xpack`），避免开源仓库缺少 `xpack` 源码导致的 build constraints 错误。
 - 前端构建阶段已设置 `NODE_OPTIONS=--max-old-space-size=8192` 以避免 Vite 构建时内存不足。
 
 ### Output
