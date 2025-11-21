@@ -1,7 +1,7 @@
 ARG GO_VERSION=1.24
 ARG NODE_VERSION=20
 ARG VERSION=v2.0.13
-ARG TARGET_ARCHES="amd64 arm64 loong64"
+ARG TARGET_ARCHES="amd64 arm64 arm ppc64le s390x riscv64 loong64"
 
 FROM node:${NODE_VERSION}-bookworm AS frontend-builder
 ARG VERSION
