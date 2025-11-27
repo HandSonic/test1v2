@@ -123,10 +123,90 @@ master:
   # 定时任务 - 每天 UTC 02:00
   "crontab: 0 2 * * *": *build_pipeline
 
-  # 手动触发 (对应 .cnb/web_trigger.yml 中的 event)
-  web_trigger_build: *build_pipeline
+  # 手动触发 - 强制构建，不检查版本
+  web_trigger_build:
+    - name: Build 1Panel v2 from source (Manual)
+      runner:
+        tags: cnb:arch:amd64
+        cpus: 8
+      docker:
+        image: docker:24-dind
+      services:
+        - docker
+      stages:
+        - name: Check Version
+          script: |
+            set -e
+            apk add --no-cache curl jq git
+
+            version="${VERSION:-}"
+            if [ -z "$version" ]; then
+              version=$(curl -s https://api.github.com/repos/1Panel-dev/1Panel/releases/latest | jq -r ".tag_name // empty")
+            fi
+            if [ -z "$version" ] || [ "$version" = "null" ]; then
+              version="v2.0.13"
+            fi
+
+            # CNB多选用分号分隔，转换为空格分隔
+            arch_input="${TARGET_ARCHES:-amd64,arm64,armv7,ppc64le,s390x,loong64,riscv64}"
+            arch_list=$(echo "$arch_input" | tr ';,' ' ')
+
+            echo "Manual build: ${version}, arches: ${arch_list}"
+
+            echo "##[set-output VERSION=${version}]"
+            echo "##[set-output ARCH_LIST=${arch_list}]"
+          exports:
+            VERSION: VERSION
+            ARCH_LIST: ARCH_LIST
+
+        - name: Build Docker Image
+          script: |
+            set -e
+            IMAGE_TAG="1panel-v2-builder:${CNB_PIPELINE_ID:-$(date +%s)}"
+            docker build \
+              -f Dockerfile \
+              --build-arg VERSION="${VERSION}" \
+              --build-arg TARGET_ARCHES="${ARCH_LIST}" \
+              --build-arg GO_VERSION="1.24" \
+              --build-arg NODE_VERSION="20" \
+              -t "$IMAGE_TAG" \
+              .
+            echo "##[set-output IMAGE_TAG=${IMAGE_TAG}]"
+          exports:
+            IMAGE_TAG: IMAGE_TAG
+
+        - name: Export Artifacts
+          script: |
+            set -e
+            mkdir -p dist
+            docker run --rm -v "$PWD/dist:/dist" "$IMAGE_TAG"
+            ls -lh dist/
+
+        - name: Create Tag and Release
+          script: |
+            set -e
+            apk add --no-cache git
+            git config --global user.name "CNB Bot"
+            git config --global user.email "bot@cnb.cool"
+            git tag -f "${VERSION}" -m "Release ${VERSION}"
+            git push origin "refs/tags/${VERSION}" -f || true
+
+        - name: Create CNB Release
+          type: git:release
+          options:
+            tag: ${VERSION}
+            title: ${VERSION}
+            description: "1Panel v2 源码编译 (arches: ${ARCH_LIST})"
+            overlying: true
+
+        - name: Upload to CNB Release
+          image: cnbcool/attachments:latest
+          settings:
+            tag: ${VERSION}
+            attachments:
+              - dist/*.tar.gz
+              - dist/*.sha256
 
 # main 分支 (如果默认分支是 main)
 main:
   "crontab: 0 2 * * *": *build_pipeline
-  web_trigger_build: *build_pipeline
