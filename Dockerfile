@@ -40,16 +40,29 @@ RUN set -ex \
     && apt-get install -y --no-install-recommends ca-certificates git wget \
     && rm -rf /var/lib/apt/lists/*
 
+# Use custom download script instead of ci/script.sh for cross-version compatibility
+COPY scripts/download_resources.sh /tmp/download_resources.sh
+
 RUN set -ex \
-    && REF="${INSTALLER_REF:-v2}" \
-    && sed -i "s@installer/raw/v2/@installer/raw/${REF}/@g" ./ci/script.sh \
-    && sed -i "s@installer/raw/${REF}/1panel-core.service@installer/raw/${REF}/initscript/1panel-core.service@g" ./ci/script.sh \
-    && sed -i "s@installer/raw/${REF}/1panel-agent.service@installer/raw/${REF}/initscript/1panel-agent.service@g" ./ci/script.sh \
-    && ./ci/script.sh \
+    && chmod +x /tmp/download_resources.sh \
+    && INSTALLER_REF="${INSTALLER_REF:-v2}" /tmp/download_resources.sh \
     && sed -i "s@^ORIGINAL_VERSION=.*@ORIGINAL_VERSION=${VERSION}@g" /opt/1Panel/1pctl
 
 RUN set -ex \
     && mkdir -p build dist \
+    # Verify required files exist before building
+    && for f in 1pctl install.sh GeoIP.mmdb; do \
+        if [ ! -f "/opt/1Panel/${f}" ]; then echo "ERROR: Missing ${f}"; exit 1; fi; \
+    done \
+    && if [ ! -d "/opt/1Panel/initscript" ]; then echo "ERROR: Missing initscript/"; exit 1; fi \
+    && if [ ! -d "/opt/1Panel/lang" ]; then echo "ERROR: Missing lang/"; exit 1; fi \
+    # Copy service files from initscript if root-level ones missing
+    && if [ ! -f "/opt/1Panel/1panel-core.service" ] && [ -f "/opt/1Panel/initscript/1panel-core.service" ]; then \
+        cp /opt/1Panel/initscript/1panel-core.service /opt/1Panel/1panel-core.service; \
+    fi \
+    && if [ ! -f "/opt/1Panel/1panel-agent.service" ] && [ -f "/opt/1Panel/initscript/1panel-agent.service" ]; then \
+        cp /opt/1Panel/initscript/1panel-agent.service /opt/1Panel/1panel-agent.service; \
+    fi \
     && for ARCH in ${TARGET_ARCHES}; do \
         echo "==> building ${ARCH}"; \
         GOARCH=${ARCH}; GOARM=""; APP_ARCH=${ARCH}; \
@@ -62,8 +75,11 @@ RUN set -ex \
         mkdir -p "/opt/1Panel/${PACKAGE_NAME}"; \
         cp /opt/1Panel/build/1panel-core /opt/1Panel/build/1panel-agent "/opt/1Panel/${PACKAGE_NAME}/"; \
         cp /opt/1Panel/1pctl /opt/1Panel/install.sh "/opt/1Panel/${PACKAGE_NAME}/"; \
-        cp /opt/1Panel/1panel-core.service /opt/1Panel/1panel-agent.service "/opt/1Panel/${PACKAGE_NAME}/"; \
-        cp /opt/1Panel/GeoIP.mmdb /opt/1Panel/LICENSE /opt/1Panel/README.md "/opt/1Panel/${PACKAGE_NAME}/"; \
+        [ -f /opt/1Panel/1panel-core.service ] && cp /opt/1Panel/1panel-core.service "/opt/1Panel/${PACKAGE_NAME}/"; \
+        [ -f /opt/1Panel/1panel-agent.service ] && cp /opt/1Panel/1panel-agent.service "/opt/1Panel/${PACKAGE_NAME}/"; \
+        [ -f /opt/1Panel/GeoIP.mmdb ] && cp /opt/1Panel/GeoIP.mmdb "/opt/1Panel/${PACKAGE_NAME}/"; \
+        [ -f /opt/1Panel/LICENSE ] && cp /opt/1Panel/LICENSE "/opt/1Panel/${PACKAGE_NAME}/"; \
+        [ -f /opt/1Panel/README.md ] && cp /opt/1Panel/README.md "/opt/1Panel/${PACKAGE_NAME}/"; \
         cp -r /opt/1Panel/initscript /opt/1Panel/lang "/opt/1Panel/${PACKAGE_NAME}/"; \
         tar -czf "/opt/1Panel/${PACKAGE_NAME}.tar.gz" -C /opt/1Panel "${PACKAGE_NAME}"; \
         sha256sum "/opt/1Panel/${PACKAGE_NAME}.tar.gz" > "/opt/1Panel/dist/${PACKAGE_NAME}.tar.gz.sha256"; \

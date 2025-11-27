@@ -37,4 +37,8 @@ docker run --rm -v "$(pwd)/dist:/dist" 1panel-v2-builder
 
 ### goreleaser（可选）
 - 仓库附带 `.goreleaser.yaml`，按官方 v2 结构（core/agent 双二进制、多架构）但不开启 `xpack` 标签，避免开源代码缺少对应实现。
-- 在有源码的情况下直接执行 `goreleaser release --clean`（或 `goreleaser build`）；需要 Go 1.24、Node 20，且需先跑 `./ci/script.sh` 拉取安装文件（已在 hooks 里自动处理）。
+- 在有源码的情况下直接执行 `goreleaser release --clean`（或 `goreleaser build`）；需要 Go 1.24、Node 20，且需先跑 `./scripts/download_resources.sh` 拉取安装文件（已在 hooks 里自动处理）。
+
+### 跨版本兼容性
+- 使用自定义 `scripts/download_resources.sh` 替代官方 `ci/script.sh`，确保构建任意版本（包括旧版本）时不会因官方 installer 仓库文件位置变化而报错。
+- 该脚本始终从 installer 仓库的 `initscript/` 目录下载 service 文件，兼容官方最新结构。

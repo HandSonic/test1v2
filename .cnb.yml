@@ -1,0 +1,89 @@
+# CNB 配置文件 - 1Panel v2 源码编译
+# 对应 GitHub Actions: .github/workflows/build.yml
+#
+# 环境变量说明 (通过手动触发时可传入):
+#   VERSION: 1Panel版本 (如 v2.0.13, 留空则自动获取最新)
+#   TARGET_ARCHES: 目标架构列表 (空格分隔, 默认: amd64 arm64 armv7 ppc64le s390x loong64 riscv64)
+
+# 定义构建流水线模板
+.build_pipeline: &build_pipeline
+  - name: Build 1Panel v2 from source
+    runner:
+      tags: cnb:arch:amd64
+      cpus: 8
+    docker:
+      image: docker:24-dind
+    services:
+      - docker
+    stages:
+      - name: Check Version
+        script: |
+          set -e
+          apk add --no-cache curl jq
+
+          version="${VERSION:-}"
+          if [ -z "$version" ]; then
+            version=$(curl -s https://api.github.com/repos/1Panel-dev/1Panel/releases/latest | jq -r ".tag_name // empty")
+          fi
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            version="v2.0.13"
+          fi
+
+          # CNB多选用分号分隔，转换为空格分隔
+          arch_input="${TARGET_ARCHES:-amd64,arm64,armv7,ppc64le,s390x,loong64,riscv64}"
+          arch_list=$(echo "$arch_input" | tr ';,' ' ')
+
+          echo "Building version: ${version}, arches: ${arch_list}"
+
+          echo "##[set-output VERSION=${version}]"
+          echo "##[set-output ARCH_LIST=${arch_list}]"
+        exports:
+          VERSION: VERSION
+          ARCH_LIST: ARCH_LIST
+
+      - name: Build Docker Image
+        script: |
+          set -e
+          docker build \
+            -f Dockerfile \
+            --build-arg VERSION="${VERSION}" \
+            --build-arg TARGET_ARCHES="${ARCH_LIST}" \
+            --build-arg GO_VERSION="1.24" \
+            --build-arg NODE_VERSION="20" \
+            -t "1panel-v2-builder:${CNB_BUILD_NUMBER}" \
+            .
+
+      - name: Export Artifacts
+        script: |
+          set -e
+          mkdir -p dist
+          docker run --rm -v "$PWD/dist:/dist" "1panel-v2-builder:${CNB_BUILD_NUMBER}"
+          ls -lh dist/
+
+      - name: Upload to CNB Attachments
+        image: cnbcool/attachments:latest
+        settings:
+          attachments:
+            - dist/*.tar.gz
+            - dist/*.sha256
+
+# ============================================
+# 触发规则配置
+# ============================================
+
+# Tag 触发 (v* 格式)
+"v*":
+  push: *build_pipeline
+
+# master 分支配置
+master:
+  # 定时任务 - 每天 UTC 02:00
+  "crontab: 0 2 * * *": *build_pipeline
+
+  # 手动触发 (对应 .cnb/web_trigger.yml 中的 event)
+  web_trigger_build: *build_pipeline
+
+# main 分支 (如果默认分支是 main)
+main:
+  "crontab: 0 2 * * *": *build_pipeline
+  web_trigger_build: *build_pipeline

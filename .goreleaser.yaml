@@ -4,8 +4,8 @@ version: 2
 
 before:
   hooks:
-    - chmod +x ./ci/script.sh
-    - ./ci/script.sh
+    - chmod +x ./scripts/download_resources.sh
+    - INSTALLER_REF=v2 ./scripts/download_resources.sh
     - sed -i 's@ORIGINAL_VERSION=.*@ORIGINAL_VERSION=v{{ .Version }}@g' 1pctl
 
 builds:
